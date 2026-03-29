@@ -1,6 +1,6 @@
 """
 Sentiment Analysis Engine
-Uses FinBERT for finance-specific sentiment analysis
+Uses VADER for lightweight sentiment analysis (Streamlit Cloud compatible)
 """
 import pandas as pd
 import numpy as np
@@ -9,66 +9,24 @@ from typing import List, Dict
 import warnings
 warnings.filterwarnings('ignore')
 
-try:
-    from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    TRANSFORMERS_AVAILABLE = False
-
 
 class SentimentAnalyzer:
-    def __init__(self, model_name: str = "ProsusAI/finbert"):
+    def __init__(self, model_name: str = None):
         self.model_name = model_name
-        self.sentiment_pipeline = None
         self.vader_analyzer = None
         
-        if TRANSFORMERS_AVAILABLE:
-            try:
-                self.sentiment_pipeline = pipeline(
-                    "sentiment-analysis",
-                    model=model_name,
-                    tokenizer=model_name,
-                    device=-1
-                )
-                print(f"[Sentiment] FinBERT loaded successfully")
-            except Exception as e:
-                print(f"[Sentiment] FinBERT failed: {e}, using fallback")
-                self.sentiment_pipeline = None
-        
-        if not self.sentiment_pipeline:
-            try:
-                from nltk.sentiment.vader import SentimentIntensityAnalyzer
-                import nltk
-                nltk.download('vader_lexicon', quiet=True)
-                self.vader_analyzer = SentimentIntensityAnalyzer()
-                print("[Sentiment] Using VADER fallback")
-            except Exception as e:
-                print(f"[Sentiment] VADER also failed: {e}")
+        try:
+            from nltk.sentiment.vader import SentimentIntensityAnalyzer
+            import nltk
+            nltk.download('vader_lexicon', quiet=True)
+            nltk.download('punkt', quiet=True)
+            self.vader_analyzer = SentimentIntensityAnalyzer()
+            print("[Sentiment] VADER loaded successfully")
+        except Exception as e:
+            print(f"[Sentiment] VADER failed: {e}")
     
     def analyze_text(self, text: str) -> Dict:
-        """Analyze sentiment of a single text"""
-        if self.sentiment_pipeline:
-            try:
-                result = self.sentiment_pipeline(text[:512])[0]
-                
-                score_map = {
-                    "positive": 1.0,
-                    "negative": -1.0,
-                    "neutral": 0.0
-                }
-                
-                label = result["label"].lower()
-                score = score_map.get(label, 0.0) * result["score"]
-                
-                return {
-                    "label": label,
-                    "score": score,
-                    "confidence": result["score"],
-                    "source": "finbert"
-                }
-            except Exception as e:
-                print(f"[Sentiment] FinBERT error: {e}")
-        
+        """Analyze sentiment of a single text using VADER"""
         if self.vader_analyzer:
             scores = self.vader_analyzer.polarity_scores(text)
             return {
